@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-screen bg-gray-50;
+  }
+  
+  /* 强制按钮焦点样式 */
+  button:focus-visible,
+  a:focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2 !important;
+  }
+  
+  /* 输入框焦点样式 - 移除边框和轮廓效果 */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    @apply border-blue-500 ring-2 ring-blue-500 outline-none !important;
+  }
+
+  /* 隐藏浏览器滚动条 */
+  ::-webkit-scrollbar {
+    display: none; /* 适用于Chrome, Safari和新版Edge */
+  }
+
+  /* 针对Firefox */
+  html {
+    scrollbar-width: none;
+  }
+
+  /* 针对IE和Edge旧版本 */
+  body {
+    -ms-overflow-style: none;
+  }
+}
+
+/* 定义主要颜色变量 */
+:root {
+  --color-primary: theme('colors.blue.600');
+  --color-primary-hover: theme('colors.blue.700');
+}
+
+/* 主要操作按钮焦点样式 */
+.max-w-content {
+  @apply max-w-3xl mx-auto;
+}

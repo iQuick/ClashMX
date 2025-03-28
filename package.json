@@ -1,0 +1,17 @@
+{
+  "name": "clash-mx",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "web:dev": "cd web && npm run dev",
+    "web:build": "cd web && npm run build",
+    "web:preview": "cd web && npm run preview",
+    "web:setup": "cd web && npm install",
+    "api:start": "cd api && npm start",
+    "api:setup": "cd api && npm install",
+    "setup": "npm run api:setup && npm run web:setup",
+    "start": "node start.js"
+  },
+  "dependencies": {
+  }
+}
