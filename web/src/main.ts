@@ -4,12 +4,14 @@ import './style.css'
 import App from './App.vue'
 import { startApiMonitoring } from './api/status'
 import { createPinia } from 'pinia'
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 
 // 创建应用实例
 const app = createApp(App)
 
 // 创建Pinia实例
 const pinia = createPinia()
+pinia.use(piniaPluginPersistedstate)
 
 // 启动API服务状态监控
 startApiMonitoring()

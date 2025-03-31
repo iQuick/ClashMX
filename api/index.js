@@ -51,6 +51,69 @@ app.use((req, res, next) => {
   next();
 });
 
+// 登录接口
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  
+  try {
+    // 检查 auth 文件是否存在
+    const authFilePath = path.join(__dirname, 'data/auth');
+    if (!fs.existsSync(authFilePath)) {
+      // 创建默认用户数据
+      const defaultAuthData = [
+        {
+          id: 1,
+          username: 'admin',
+          password: 'admin',
+          role: 'admin'
+        }
+      ];
+      
+      // 确保 data 目录存在
+      const dataDir = path.join(__dirname, 'data');
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      
+      // 写入默认用户数据
+      fs.writeFileSync(authFilePath, JSON.stringify(defaultAuthData, null, 2));
+      console.log('已创建默认用户数据文件');
+    }
+    
+    // 读取用户数据
+    const authData = JSON.parse(fs.readFileSync(authFilePath, 'utf8'));
+    const user = authData.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+      // 生成一个简单的 token（实际应用中应该使用更安全的方式）
+      const token = Buffer.from(`${username}:${Date.now()}`).toString('base64');
+      
+      res.json({ 
+        success: true, 
+        data: { 
+          token,
+          user: { 
+            id: user.id,
+            username: user.username,
+            role: user.role
+          }
+        }
+      });
+    } else {
+      res.status(401).json({ 
+        success: false, 
+        error: '用户名或密码错误' 
+      });
+    }
+  } catch (error) {
+    console.error('登录处理失败:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: '服务器内部错误' 
+    });
+  }
+});
+
 // 生成机场文件ID (MD5哈希)
 const generateAirportFileId = (name, url) => {
   const data = `${name}${url}`;
@@ -562,85 +625,6 @@ app.post('/api/subscription', (req, res) => {
   }
 });
 
-// 调试端点 - 文件系统测试
-app.get('/api/debug/file-test', (req, res) => {
-  try {
-    console.log('开始文件系统测试');
-    const testContent = '测试内容-' + new Date().toISOString();
-    const testPath = path.join(DATA_DIR, 'debug_test.txt');
-    
-    // 确保目录存在
-    if (!fs.existsSync(DATA_DIR)) {
-      console.log(`创建目录: ${DATA_DIR}`);
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    
-    // 写入测试文件
-    console.log(`写入测试文件: ${testPath}`);
-    fs.writeFileSync(testPath, testContent, 'utf8');
-    
-    // 读取测试文件
-    console.log('读取测试文件');
-    const readContent = fs.readFileSync(testPath, 'utf8');
-    
-    // 返回结果
-    res.json({
-      success: true,
-      writeContent: testContent,
-      readContent: readContent,
-      match: testContent === readContent,
-      dataDir: DATA_DIR,
-      files: fs.readdirSync(DATA_DIR).map(file => ({
-        name: file,
-        size: fs.statSync(path.join(DATA_DIR, file)).size,
-        isDirectory: fs.statSync(path.join(DATA_DIR, file)).isDirectory()
-      }))
-    });
-  } catch (error) {
-    console.error('文件系统测试失败:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      stack: error.stack
-    });
-  }
-});
-
-// 调试端点 - 查看订阅规则文件
-app.get('/api/debug/subscription-file', (req, res) => {
-  try {
-    const filePath = RULE_TEMPLET_FILE;
-    
-    if (!fs.existsSync(filePath)) {
-      return res.json({
-        exists: false,
-        message: '文件不存在'
-      });
-    }
-    
-    const content = fs.readFileSync(filePath, 'utf8');
-    const stats = fs.statSync(filePath);
-    
-    res.json({
-      exists: true,
-      content: content,
-      contentLength: content.length,
-      fileSize: stats.size,
-      stats: {
-        created: stats.birthtime,
-        modified: stats.mtime,
-        accessed: stats.atime
-      }
-    });
-  } catch (error) {
-    console.error('获取订阅规则文件信息失败:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
 // 订阅地址 - 返回YAML格式的订阅规则
 app.get('/api/mx.yaml', (req, res) => {
   console.log('收到订阅地址请求');
@@ -677,56 +661,6 @@ app.get('/api/mx.yaml', (req, res) => {
   }
 });
 
-// 保存处理后的mx.yaml内容
-app.post('/api/mx.yaml-content', (req, res) => {
-  console.log('=======================================');
-  console.log('收到保存处理后的mx.yaml内容请求');
-  console.log('请求头:', JSON.stringify(req.headers));
-  console.log('请求体类型:', typeof req.body);
-  
-  try {
-    // 检查请求体
-    if (req.body === undefined || req.body === null) {
-      console.error('请求体为空');
-      return res.status(400).json({ success: false, error: '请求体不能为空' });
-    }
-    
-    // 记录请求体内容摘要
-    if (typeof req.body === 'string') {
-      const preview = req.body.length > 100 ? req.body.substring(0, 100) + '...' : req.body;
-      console.log('请求体内容预览:', preview);
-      console.log('请求体长度:', req.body.length);
-    } else {
-      console.log('请求体不是字符串:', typeof req.body);
-    }
-    
-    // 直接写入mx.yaml文件
-    const filePath = path.join(DATA_DIR, 'mx.yaml');
-    console.log(`准备写入文件: ${filePath}`);
-    
-    // 无条件直接写入原始内容
-    fs.writeFileSync(filePath, req.body, 'utf8');
-    
-    // 验证写入结果
-    if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, 'utf8');
-      console.log('文件写入后长度:', content.length);
-      
-      if (content !== req.body) {
-        console.error('警告: 写入内容与请求内容不同!');
-        console.log('差异:', content === req.body ? '无' : '有差异');
-      }
-    }
-    
-    console.log('mx.yaml文件写入完成');
-    console.log('=======================================');
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('保存mx.yaml内容失败:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
 
 // 错误处理中间件
 app.use((err, req, res, next) => {

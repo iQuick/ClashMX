@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useSimpleRuleStore } from '../stores/simpleRule'
+import { useSimpleRuleStore } from '@/stores/simpleRule'
 import { storeToRefs } from 'pinia'
 
 const simpleRuleStore = useSimpleRuleStore()

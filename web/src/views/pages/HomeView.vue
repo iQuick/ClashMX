@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useAirportStore } from '../stores/airport'
-import type { Airport } from '../stores/airport'
+import { useAirportStore } from '@/stores/airport'
+import type { Airport } from '@/stores/airport'
 
 // 使用机场数据store
 const airportStore = useAirportStore()
@@ -124,7 +124,19 @@ function copyAirportUrl(airport: Airport) {
             class="bg-gray-50 rounded-lg p-6 hover:shadow-md transition-shadow"
           >
             <div class="font-medium text-gray-900 mb-2 text-lg flex items-center justify-between">
-              <span>{{ airport.name }}</span>
+              <div class="flex items-center space-x-2">
+                <span>{{ airport.name }}</span>
+                <!-- 流量标签 -->
+                <span 
+                  v-if="airport.usedTraffic && airport.totalTraffic && (airport.usedTraffic / airport.totalTraffic) >= 0.8" 
+                  class="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded"
+                >已无流量</span>
+                <!-- 过期时间标签 -->
+                <span 
+                  v-if="airport.expireTime && airport.expireTime * 1000 <= Date.now()" 
+                  class="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded"
+                >已过期</span>
+              </div>
               <button 
                 @click="copyAirportUrl(airport)" 
                 class="text-gray-500 hover:text-blue-600 transition-colors focus:outline-none relative"

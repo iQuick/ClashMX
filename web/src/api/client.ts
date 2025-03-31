@@ -15,10 +15,20 @@ const apiClient = axios.create({
 });
 
 // 添加请求拦截器，便于调试
-apiClient.interceptors.request.use(request => {
-  logger.api(request.method?.toUpperCase() || 'UNKNOWN', request.url || '');
-  return request;
-});
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    logger.api(config.method?.toUpperCase() || 'UNKNOWN', config.url || '');
+    return config;
+  },
+  (error) => {
+    logger.error('请求拦截器错误:', error);
+    return Promise.reject(error);
+  }
+);
 
 // 添加响应拦截器，便于调试
 apiClient.interceptors.response.use(

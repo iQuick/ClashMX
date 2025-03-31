@@ -2,3 +2,4 @@
 export * from './airport'
 export * from './subscription'
 export * from './simpleRule' 
+export * from './auth'

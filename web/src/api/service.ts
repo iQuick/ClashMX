@@ -4,6 +4,29 @@ import logger from '../utils/logger';
 import { generateAirportId } from '../utils/crypto';
 
 export const apiService = {
+  // 认证相关API
+  async login(username: string, password: string) {
+    try {
+      logger.info('正在验证用户身份...');
+      const response = await apiClient.post('/auth/login', { username, password });
+      
+      if (!response || !response.data) {
+        logger.error('API响应异常: 返回了空数据');
+        return { success: false, error: '服务器响应异常' };
+      }
+      
+      logger.info('用户认证成功');
+      return { success: true, data: response.data };
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError;
+      logger.error('用户认证失败:', error);
+      return { 
+        success: false, 
+        error: (axiosError.response?.data as { error?: string })?.error || '认证失败' 
+      };
+    }
+  },
+
   // 机场相关API
   async getAirports() {
     try {

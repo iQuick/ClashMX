@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { useAirportStore } from '../stores/airport'
-import type { Airport } from '../stores/airport'
+import { useAirportStore } from '@/stores/airport'
+import type { Airport } from '@/stores/airport'
 import { storeToRefs } from 'pinia'
-import { generateAirportId } from '../utils/crypto'
-import { apiService } from '../api/service'
-import logger from '../utils/logger'
+import { generateAirportId } from '@/utils/crypto'
+import { apiService } from '@/api/service'
 
 // 使用机场数据store
 const airportStore = useAirportStore()
@@ -360,6 +359,16 @@ function copyAirportUrl(airport: Airport) {
             <div class="flex items-center space-x-2">
               <h2 class="text-xl font-bold text-gray-900">{{ airport.name }}</h2>
               <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">机场</span>
+              <!-- 流量标签 -->
+              <span 
+                v-if="airport.usedTraffic && airport.totalTraffic && (airport.usedTraffic / airport.totalTraffic) >= 0.8" 
+                class="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded"
+              >已无流量</span>
+              <!-- 过期时间标签 -->
+              <span 
+                v-if="airport.expireTime && airport.expireTime * 1000 <= Date.now()" 
+                class="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded"
+              >已过期</span>
             </div>
             <button 
               @click="copyAirportUrl(airport)" 
@@ -383,11 +392,15 @@ function copyAirportUrl(airport: Airport) {
             </div>
             <div class="flex items-start space-x-2" v-if="airport.usedTraffic && airport.totalTraffic">
               <span class="text-gray-500 text-sm font-medium w-16">流量</span>
-              <span class="text-gray-700 text-sm flex-1">{{ (airport.usedTraffic / 1024 / 1024 / 1024).toFixed(1) }}GB / {{ (airport.totalTraffic / 1024 / 1024 / 1024).toFixed(1) }}GB</span>
+              <span class="text-gray-700 text-sm flex-1">
+                {{ (airport.usedTraffic / 1024 / 1024 / 1024).toFixed(1) }}GB / {{ (airport.totalTraffic / 1024 / 1024 / 1024).toFixed(1) }}GB
+              </span>
             </div>
             <div class="flex items-start space-x-2" v-if="airport.expireTime">
               <span class="text-gray-500 text-sm font-medium w-16">过期时间</span>
-              <span class="text-gray-700 text-sm flex-1">{{ new Date(airport.expireTime * 1000).toLocaleString() }}</span>
+              <span class="text-gray-700 text-sm flex-1">
+                {{ new Date(airport.expireTime * 1000).toLocaleString() }}
+              </span>
             </div>
           </div>
           <div class="flex justify-end space-x-3 pt-4">

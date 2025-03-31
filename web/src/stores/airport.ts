@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { apiService } from '../api/service'
 import logger from '../utils/logger'
-import { nanoid } from 'nanoid'
 import { generateAirportId } from '../utils/crypto'
 
 // 机场接口定义
