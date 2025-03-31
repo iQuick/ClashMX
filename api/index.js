@@ -14,7 +14,7 @@ const { error } = require('console');
 
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3100;
 const DATA_DIR = path.join(__dirname, 'data');
 const AIRPORTS_DIR = path.join(DATA_DIR, 'airports'); // 机场数据目录
 const RULE_TEMPLET_FILE =path.join(DATA_DIR,  "./rule_templet")
