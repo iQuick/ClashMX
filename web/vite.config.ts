@@ -19,9 +19,8 @@ export default defineConfig({
         changeOrigin: true
       }
     },    
-    // 在这里添加 allowedHosts 配置
+    // 脭脷脮芒脌茂脤铆录脫 allowedHosts 脜盲脰脙
     allowedHosts: [
-      'clash.xioobu.cn',
     ]
   }
 })
