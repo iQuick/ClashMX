@@ -19,7 +19,7 @@ onMounted(async () => {
 })
 
 const subscriptionUrl = computed(() => {
-  // 使用当前页面的origin作为基础URL
+  // 使用前端应用地址，通过前端代理访问后端API
   return `${window.location.origin}/api/mx.yaml`
 })
 
@@ -128,7 +128,7 @@ function copyAirportUrl(airport: Airport) {
                 <span>{{ airport.name }}</span>
                 <!-- 流量标签 -->
                 <span 
-                  v-if="airport.usedTraffic && airport.totalTraffic && (airport.usedTraffic / airport.totalTraffic) >= 0.8" 
+                  v-if="airport.usedTraffic && airport.totalTraffic && (airport.usedTraffic / airport.totalTraffic) >= 1" 
                   class="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded"
                 >已无流量</span>
                 <!-- 过期时间标签 -->

@@ -82,21 +82,26 @@ export const useAirportStore = defineStore('airport', {
     /**
      * 添加机场
      */
-    async addAirport(airport: Omit<Airport, 'id'>) {
+    async addAirport(airport: Airport) {
       try {
         // 根据机场名称和URL生成ID
-        const generatedId = generateAirportId(airport.name, airport.url)
+        // const generatedId = generateAirportId(airport.name, airport.url)
         
-        // 准备待保存的机场数据
+        // // 准备待保存的机场数据
+        // const airportData = { 
+        //   ...airport, 
+        //   id: generatedId // 使用生成的MD5作为ID
+        // }
+        
+        // // 检查是否已存在相同ID的机场
+        // const existingIndex = this.airports.findIndex(a => a.id === generatedId)
+        // if (existingIndex !== -1) {
+        //   throw new Error('已存在相同名称和URL的机场')
+        // }
+
+        
         const airportData = { 
-          ...airport, 
-          id: generatedId // 使用生成的MD5作为ID
-        }
-        
-        // 检查是否已存在相同ID的机场
-        const existingIndex = this.airports.findIndex(a => a.id === generatedId)
-        if (existingIndex !== -1) {
-          throw new Error('已存在相同名称和URL的机场')
+          ...airport
         }
         
         // 保存到服务器

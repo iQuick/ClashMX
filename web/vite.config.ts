@@ -5,6 +5,11 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  },
   server: {
     host: '127.0.0.1',
     port: 8010,
@@ -13,11 +18,10 @@ export default defineConfig({
         target: 'http://localhost:3100',
         changeOrigin: true
       }
-    }
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src')
-    }
+    },    
+    // 在这里添加 allowedHosts 配置
+    allowedHosts: [
+      'clash.xioobu.cn',
+    ]
   }
 })

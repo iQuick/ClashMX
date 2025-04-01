@@ -1,4 +1,7 @@
 dist
 node_modules
 package-lock.json
-data
+data/airports
+data/airports-source/
+data/mx.yaml
+data/auth

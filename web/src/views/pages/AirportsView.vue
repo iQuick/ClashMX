@@ -128,6 +128,9 @@ const newAirport = reactive({
   description: ''
 })
 
+const adding = ref(false)
+const updating = ref(false)
+
 function openAddModal() {
   newAirport.name = ''
   newAirport.url = ''
@@ -140,6 +143,11 @@ function closeAddModal() {
 }
 
 async function handleCloseAddModal() {
+  if (adding.value) {
+    if (!confirm('正在添加机场，确定要取消吗？')) {
+      return
+    }
+  }
   closeAddModal()
 }
 
@@ -149,30 +157,36 @@ async function handleAddAirport() {
     return
   }
     
-  const airport = {
-    name: newAirport.name,
-    url: newAirport.url,
-    description: newAirport.description,
-    usedTraffic: 0,
-    totalTraffic: 0,
-    expireTime: 0
-  }
-  const airportInfo = await apiService.queryAirportInfoByUrl(newAirport.url)
-  if (airportInfo.success) {
-    airport.usedTraffic = airportInfo.data.download
-    airport.totalTraffic = airportInfo.data.total
-    airport.expireTime = airportInfo.data.expire
-  } else {
-    console.error('查询机场信息失败:', airportInfo.error)
-    alert('无法获取机场详细信息: ' + (airportInfo.error || '未知错误') + '\n将以基本信息添加机场')
-  }
-    
   try {
+    adding.value = true
+    const airport = {
+      id: '',
+      name: newAirport.name,
+      url: newAirport.url,
+      description: newAirport.description,
+      usedTraffic: 0,
+      totalTraffic: 0,
+      expireTime: 0
+    }
+    const airportInfo = await apiService.queryAirportInfoByUrl(newAirport.url)
+    if (airportInfo.success) {
+      airport.id = airportInfo.data.id
+      airport.usedTraffic = airportInfo.data.download
+      airport.totalTraffic = airportInfo.data.total
+      airport.expireTime = airportInfo.data.expire
+    } else {
+      console.error('查询机场信息失败:', airportInfo.error)
+      alert('无法获取机场详细信息: ' + (airportInfo.error || '未知错误') + '\n将以基本信息添加机场')
+    }
+    
     await airportStore.addAirport(airport)
+
     closeAddModal()
   } catch (error: any) {
     console.error('添加机场失败:', error)
     alert('添加机场失败: ' + (error.message || '未知错误'))
+  } finally {
+    adding.value = false
   }
 }
 
@@ -195,6 +209,7 @@ async function updateAirport() {
   }
 
   try {
+    updating.value = true
     const airportInfo = await apiService.queryAirportInfoByUrl(currentAirport.value.url)
     const airport = {
       name: currentAirport.value.name,
@@ -223,25 +238,30 @@ async function updateAirport() {
   } catch (error: any) {
     console.error('更新机场失败:', error)
     alert('更新机场失败: ' + (error.message || '未知错误'))
+  } finally {
+    updating.value = false
   }
 }
 
 const importUrl = ref('')
+const importing = ref(false)
 
-async function handleImport() {
-  if (!importUrl.value) {
-    alert('请输入订阅URL')
-    return
-  }
-
-  const url = importUrl.value
-  
+const handleImport = async () => {
   try {
+    importing.value = true
+    if (!importUrl.value) {
+      alert('请输入订阅URL')
+      return
+    }
+
+    const url = importUrl.value
+    
     const airportInfo = await apiService.queryAirportInfoByUrl(url)
     if (airportInfo.success) {
       console.log('查询机场信息成功:', airportInfo.data)
       const parsedUrl = new URL(url);
       await airportStore.addAirport({
+        id: airportInfo.data.id,
         name: airportInfo.data.name || parsedUrl.hostname,
         url: url,
         description: airportInfo.data.name ? parsedUrl.hostname : '',
@@ -258,8 +278,9 @@ async function handleImport() {
   } catch (error: any) {
     console.error('查询机场信息失败:', error)
     alert('查询机场信息失败: ' + (error.message || '未知错误'))
+  } finally {
+    importing.value = false
   }
-
 }
 
 async function confirmDelete(airport: Airport) {
@@ -290,6 +311,15 @@ function copyAirportUrl(airport: Airport) {
       console.error('复制失败:', err)
     })
 }
+
+function handleCloseEditModal() {
+  if (updating.value) {
+    if (!confirm('正在更新机场，确定要取消吗？')) {
+      return
+    }
+  }
+  closeEditModal()
+}
 </script>
 
 <template>
@@ -305,8 +335,13 @@ function copyAirportUrl(airport: Airport) {
         <input v-model="importUrl" type="text" placeholder="请输入订阅URL"
           class="px-4 py-2 border border-gray-300 rounded-md transition-colors flex-1" />
         <button @click="handleImport"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white">
-          导入
+          :disabled="importing"
+          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+          <svg v-if="importing" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          {{ importing ? '导入中...' : '导入' }}
         </button>
         <button 
           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors w-full sm:w-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white"
@@ -356,23 +391,23 @@ function copyAirportUrl(airport: Airport) {
         class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-200 max-w-full">
         <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <h2 class="text-xl font-bold text-gray-900">{{ airport.name }}</h2>
-              <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">机场</span>
+            <div class="flex items-center space-x-2 min-w-0">
+              <h2 class="text-xl font-bold text-gray-900 truncate">{{ airport.name }}</h2>
+              <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded whitespace-nowrap">机场</span>
               <!-- 流量标签 -->
               <span 
-                v-if="airport.usedTraffic && airport.totalTraffic && (airport.usedTraffic / airport.totalTraffic) >= 0.8" 
-                class="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded"
+                v-if="airport.usedTraffic && airport.totalTraffic && (airport.usedTraffic / airport.totalTraffic) >= 1" 
+                class="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded whitespace-nowrap"
               >已无流量</span>
               <!-- 过期时间标签 -->
               <span 
                 v-if="airport.expireTime && airport.expireTime * 1000 <= Date.now()" 
-                class="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded"
+                class="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded whitespace-nowrap"
               >已过期</span>
             </div>
             <button 
               @click="copyAirportUrl(airport)" 
-              class="text-gray-500 hover:text-blue-600 transition-colors focus:outline-none flex items-center relative"
+              class="text-gray-500 hover:text-blue-600 transition-colors focus:outline-none flex items-center relative ml-4 flex-shrink-0"
               title="复制订阅地址"
             >
               <span v-if="copiedId === airport.id" class="absolute -left-16 top-0 text-xs text-white bg-green-600 px-1.5 py-0.5 rounded whitespace-nowrap">已复制!</span>
@@ -455,9 +490,17 @@ function copyAirportUrl(airport: Airport) {
         </div>
         <div class="flex justify-end space-x-3 p-4 border-t border-gray-200">
           <button class="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            :disabled="adding"
             @click="handleCloseAddModal">取消</button>
-          <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            @click="handleAddAirport">确定</button>
+          <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            :disabled="adding"
+            @click="handleAddAirport">
+            <svg v-if="adding" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ adding ? '添加中...' : '确定' }}
+          </button>
         </div>
       </div>
     </div>
@@ -467,7 +510,7 @@ function copyAirportUrl(airport: Airport) {
       <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
         <div class="flex justify-between items-center p-4 border-b border-gray-200">
           <h2 class="text-xl font-semibold text-gray-900">编辑机场</h2>
-          <button class="text-gray-400 hover:text-gray-500 transition-colors" @click="closeEditModal">×</button>
+          <button class="text-gray-400 hover:text-gray-500 transition-colors" @click="handleCloseEditModal">×</button>
         </div>
         <div class="p-4 space-y-4" v-if="currentAirport">
           <div class="space-y-2">
@@ -488,9 +531,17 @@ function copyAirportUrl(airport: Airport) {
         </div>
         <div class="flex justify-end space-x-3 p-4 border-t border-gray-200">
           <button class="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            @click="closeEditModal">取消</button>
-          <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            @click="updateAirport">确定</button>
+            :disabled="updating"
+            @click="handleCloseEditModal">取消</button>
+          <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            :disabled="updating"
+            @click="updateAirport">
+            <svg v-if="updating" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ updating ? '更新中...' : '确定' }}
+          </button>
         </div>
       </div>
     </div>
