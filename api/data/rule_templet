@@ -40,8 +40,10 @@ proxy-providers:
   {% for a in airports %}
   {{ a.name }}:
     type: http
-    path: ./profiles/proxies/{{ a.name }}.yaml
+    path: ./profiles/proxies/mx/{{ a.name }}.yaml
     url: {{ a.url }}
+    interval: 3600
+    max-failed-times: 3
     health-check:
       enable: true
       url: https://www.google.com/generate_204
@@ -100,7 +102,7 @@ proxy-groups:
     interval: 300
     lazy: true
     timeout: 5000
-    max-failed-times: 5
+    max-failed-times: 3
     tolerance: 30
     use:
       {% for a in airports %}
@@ -113,15 +115,11 @@ proxy-groups:
     proxies:
       - PROXY
       - DIRECT
-    interval: 300
-    lazy: true
-    timeout: 5000
-    max-failed-times: 5
-    tolerance: 30
     use:
       {% for a in airports %}
       - {{ a.name }}
       {% endfor %}
+
 rule-providers:
   reject:
     type: http
