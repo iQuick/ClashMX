@@ -1,6 +1,7 @@
 dist
 node_modules
 package-lock.json
+config.json
 data/airports
 data/airports-source/
 data/mx.yaml
