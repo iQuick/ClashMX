@@ -4,14 +4,12 @@ const path = require('path');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 
-
 // 强制关闭占用端口的进程
 async function killPort(port) {
-  try {
     if (process.platform === 'win32') {
-      const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
-      const lines = stdout.split('\n');
-
+      const {stdout} = await execAsync('netstat -ano');
+      const lines = stdout.split('\n').filter(line => line.includes(`:${port}`));
+      console.log('lines', lines);
       for (const line of lines) {
         const match = line.match(/(\d+)\s*$/);
         if (match) {
@@ -30,6 +28,9 @@ async function killPort(port) {
       }
     } else {
       const { stdout } = await execAsync(`lsof -i :${port} -t`);
+      if (stdout.trim().length == 0) {
+        return;
+      }
       const pids = stdout.trim().split('\n');
 
       for (const pid of pids) {
@@ -45,14 +46,6 @@ async function killPort(port) {
     // 等待端口释放
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // 再次检查端口是否已释放
-    if (await checkPort(port)) {
-      throw new Error(`端口 ${port} 仍然被占用`);
-    }
-  } catch (error) {
-    console.error(`关闭端口 ${port} 的进程失败:`, error);
-    throw error;
-  }
 }
 
 // 等待服务启动

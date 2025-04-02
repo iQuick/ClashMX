@@ -16,6 +16,7 @@
         "logger": {
             "enabled": false,
             "level": "debug"
-        }
+        },
+        "allowedHosts": []
     }
 }

@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
 
   const df: { [key: string]: any } = {}
   for (const key in CONFIG) {
-    if (key === 'host' || key === 'port') {
+    if (key === 'host' || key === 'port' || key === 'allowedHosts') {
       continue;
     }
     df[`import.meta.env.${key}`] = CONFIG[key]
@@ -32,9 +32,10 @@ export default defineConfig(({ mode }) => {
           target: `http://${API.host}:${API.port}`,
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path // 保持路径不变
         }
-      }
+      },
+      // 在这里添加 allowedHosts 配置
+      allowedHosts: CONFIG.allowedHosts
     }
   }
 })
