@@ -1,0 +1,21 @@
+{
+    "api": {
+        "host": "127.0.0.1",
+        "port": 3100,
+        "proxy": {
+            "enabled": true,
+            "host": "127.0.0.1",
+            "port": 1080,
+            "username": "",
+            "password": ""
+        }
+    },
+    "web": {
+        "host": "127.0.0.1",
+        "port": 8070,
+        "logger": {
+            "enabled": false,
+            "level": "debug"
+        }
+    }
+}
