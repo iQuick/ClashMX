@@ -1,78 +1,224 @@
-const { spawn, execSync } = require('child_process');
+const { spawn, exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const process = require('process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 
-// 获取当前工作目录
-const cwd = process.cwd();
-const apiDir = path.join(cwd, 'api');
-const webDir = path.join(cwd, 'web');
+// 获取 npm 可执行文件的路径
+const npmPath = process.platform === 'win32'
+  ? path.join(process.env.APPDATA || '', 'npm', 'npm.cmd')
+  : '/usr/local/bin/npm';
 
-// 检查API目录和依赖
-console.log('检查API服务依赖...');
-if (!fs.existsSync(path.join(apiDir, 'node_modules'))) {
-  console.log('正在安装API服务依赖...');
+// 检查端口是否被占用
+async function checkPort(port) {
   try {
-    execSync('npm install', {
-      cwd: apiDir,
-      stdio: 'inherit'
-    });
-    console.log('API服务依赖安装完成');
+    if (process.platform === 'win32') {
+      const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
+      return false;
+    } else {
+      const { stdout } = await execAsync(`lsof -i :${port}`);
+      return stdout.trim().length > 0;
+    }
   } catch (error) {
-    console.error('API服务依赖安装失败:', error.message);
-    process.exit(1);
+    return false;
   }
 }
 
-// 确保API服务数据目录存在
-const dataDir = path.join(apiDir, 'data');
-if (!fs.existsSync(dataDir)) {
-  console.log('创建API服务数据目录...');
-  fs.mkdirSync(dataDir, { recursive: true });
+// 强制关闭占用端口的进程
+async function killPort(port) {
+  try {
+    if (process.platform === 'win32') {
+      const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
+      const lines = stdout.split('\n');
+
+      for (const line of lines) {
+        const match = line.match(/(\d+)\s*$/);
+        if (match) {
+          const pid = match[1];
+          if (pid == 0) {
+            continue;
+          }
+          try {
+            console.log(`尝试关闭进程 : taskkill /F /PID ${pid}`);
+            await execAsync(`taskkill /F /PID ${pid}`);
+            console.log(`已强制关闭端口 ${port} 的进程 (PID: ${pid})`);
+          } catch (error) {
+            // console.error(`关闭进程 ${pid} 失败:`, error.message);
+          }
+        }
+      }
+    } else {
+      const { stdout } = await execAsync(`lsof -i :${port} -t`);
+      const pids = stdout.trim().split('\n');
+
+      for (const pid of pids) {
+        try {
+          await execAsync(`kill -9 ${pid}`);
+          console.log(`已强制关闭端口 ${port} 的进程 (PID: ${pid})`);
+        } catch (error) {
+          console.error(`关闭进程 ${pid} 失败:`, error.message);
+        }
+      }
+    }
+
+    // 等待端口释放
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // 再次检查端口是否已释放
+    if (await checkPort(port)) {
+      throw new Error(`端口 ${port} 仍然被占用`);
+    }
+  } catch (error) {
+    console.error(`关闭端口 ${port} 的进程失败:`, error);
+    throw error;
+  }
 }
 
-// 启动API服务器
-console.log('正在启动API服务器...');
-const apiServer = spawn('npm', ['start'], {
-  cwd: apiDir,
-  shell: true,
-  stdio: 'pipe'
-});
+// 等待服务启动
+async function waitForService(host,port, timeout = 30000) {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeout) {
+    try {
+      const response = await fetch(`http://${host}:${port}/api/health`);
+      if (response.ok) {
+        return true;
+      }
+    } catch (error) {
+      // 服务还未启动，继续等待
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  throw new Error(`等待服务启动超时 (${timeout}ms)`);
+}
 
-apiServer.stdout.on('data', (data) => {
-  console.log(`[API] ${data.toString().trim()}`);
-});
 
-apiServer.stderr.on('data', (data) => {
-  console.error(`[API ERROR] ${data.toString().trim()}`);
-});
+// 启动服务
+async function startServices() {
+  let config = { api: { host: '127.0.0.1', port: 3000 }, web: { host: '127.0.0.1', port: 8000 } }
 
-// 等待API服务器启动
-setTimeout(() => {
-  // 启动前端开发服务器
-  console.log('正在启动前端服务...');
-  const frontendServer = spawn('npm', ['run', 'dev'], {
+  try {
+    const configPath = path.join(__dirname, 'config.json');
+    if (fs.existsSync(configPath)) {
+      const configContent = fs.readFileSync(configPath, 'utf-8');
+      config = JSON.parse(configContent);
+    }
+  } catch (error) {
+    console.error('读取配置文件失败:', error);
+  }
+
+  for (const port of [config.api.port, config.web.port]) {
+    if (await checkPort(port)) {
+      console.log(`端口 ${port} 被占用，正在尝试关闭...`);
+      try {
+        await killPort(port);
+      } catch (error) {
+        console.error(`无法释放端口 ${port}，请手动关闭占用该端口的进程`);
+        process.exit(1);
+      }
+    }
+  }
+
+  // 启动API服务
+  const apiProcess = spawn('node', ['api/index.js'], {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      CONFIG: JSON.stringify(config.api)
+    }
+  });
+
+  // 等待API服务启动
+  console.log('等待API服务启动...');
+  try {
+    await waitForService(config.api.host, config.api.port);
+    console.log('API服务已启动');
+  } catch (error) {
+    console.error('API服务启动失败:', error);
+    process.exit(1);
+  }
+
+  // 启动Web服务
+  console.log('启动Web服务...');
+  const webDir = path.join(__dirname, 'web');
+  const webProcess = spawn('cmd', ['/c', 'npm', 'run', 'dev'], {
     cwd: webDir,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      API: JSON.stringify({ host: config.api.host, port: config.api.port }),
+      CONFIG: JSON.stringify(config.web),
+      PATH: process.env.PATH
+    },
     shell: true,
-    stdio: 'pipe'
+    windowsHide: false
   });
 
-  frontendServer.stdout.on('data', (data) => {
-    console.log(`[前端] ${data.toString().trim()}`);
+  process.on('SIGKILL', () => {
+    console.log('SIGKILL 信号接收');
+    exit();
   });
 
-  frontendServer.stderr.on('data', (data) => {
-    console.error(`[前端错误] ${data.toString().trim()}`);
+  // 监听子进程错误
+  apiProcess.on('error', (err) => {
+    console.error('API服务启动失败:', err);
+    console.error('错误详情:', err.message);
   });
 
+  webProcess.on('error', (err) => {
+    console.error('Web服务启动失败:', err);
+    console.error('错误详情:', err.message);
+  });
+
+  // 监听子进程退出
+  apiProcess.on('exit', (code) => {
+    console.log(`API服务已退出，退出码: ${code}`);
+  });
+
+  webProcess.on('exit', (code) => {
+    console.log(`Web服务已退出，退出码: ${code}`);
+  });
+
+  // 监听子进程输出
+  apiProcess.stdout?.on('data', (data) => {
+    console.log(`[API] ${data.toString().trim()}`);
+  });
+
+  webProcess.stdout?.on('data', (data) => {
+    console.log(`[Web] ${data.toString().trim()}`);
+  });
+
+  apiProcess.stderr?.on('data', (data) => {
+    console.error(`[API Error] ${data.toString().trim()}`);
+  });
+
+  webProcess.stderr?.on('data', (data) => {
+    console.error(`[Web Error] ${data.toString().trim()}`);
+  });
+
+  
   // 处理进程退出
-  process.on('SIGINT', () => {
-    console.log('正在关闭所有服务...');
-    apiServer.kill();
-    frontendServer.kill();
-    process.exit(0);
-  });
-}, 3000); // 给API服务器3秒钟启动时间
+  const exit = () => {
+    webProcess.kill();
+    apiProcess.kill();
+    process.exit();
+  }
 
-console.log('服务正在启动中，请等待...');
-console.log('按 Ctrl+C 可以同时停止所有服务'); 
+  // 监听 SIGINT 信号 (Ctrl+C)
+  process.on('SIGINT', () => {
+    console.log('SIGINT 信号接收');
+    exit();
+  });
+
+  // 监听 SIGTERM 信号
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM 信号接收');
+    exit();
+  });
+
+}
+
+// 启动所有服务
+startServices().catch(error => {
+  console.error('启动服务失败:', error);
+  process.exit(1);
+}); 

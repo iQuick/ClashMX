@@ -1,6 +1,5 @@
 // 日志开关，优先使用环境变量，否则在生产环境下关闭，开发环境下开启
-const ENABLE_LOGGING = import.meta.env.VITE_ENABLE_LOGS === 'true' || 
-                      (import.meta.env.VITE_ENABLE_LOGS === undefined && import.meta.env.DEV);
+const ENABLE_LOGGING = import.meta.env.logger.enabled
 
 // 日志级别定义
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -15,7 +14,7 @@ const LOG_LEVEL_MAP: Record<LogLevel, number> = {
 
 // 当前日志级别，默认为info，可通过环境变量设置
 const CURRENT_LOG_LEVEL = (() => {
-  const levelFromEnv = import.meta.env.VITE_LOG_LEVEL as LogLevel | undefined;
+  const levelFromEnv = import.meta.env.logger.level as LogLevel | undefined;
   // 验证级别是否有效
   if (levelFromEnv && LOG_LEVEL_MAP[levelFromEnv] !== undefined) {
     return levelFromEnv;

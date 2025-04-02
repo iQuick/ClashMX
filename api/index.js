@@ -10,11 +10,16 @@ const crypto = require('crypto'); // 引入crypto模块用于生成MD5
 const { URL } = require('url');
 const http = require('http');
 const https = require('https');
-const { error } = require('console');
+const {HttpProxyAgent} = require('http-proxy-agent');
+const {HttpsProxyAgent} = require('https-proxy-agent');
 
+
+
+const CONFIG = JSON.parse(process.env.CONFIG || '{}')
 
 const app = express();
-const PORT = 3100;
+const HOST = CONFIG.host || '127.0.0.1';
+const PORT = CONFIG.port || 3100;
 const DATA_DIR = path.join(__dirname, 'data');
 const AIRPORTS_DIR = path.join(DATA_DIR, 'airports'); // 机场数据目录
 const AIRPORT_SOURCE_DIR = path.join(DATA_DIR, 'airports-source'); // 机场数据目录
@@ -449,7 +454,6 @@ app.post('/api/airports', (req, res) => {
   }
 });
 
-
 app.get("/api/airport-info", (req, res) => {
   try {
     // 检查URL是否为空
@@ -473,44 +477,22 @@ app.get("/api/airport-info", (req, res) => {
     const client = protocol === 'https:' ? https : http;
 
     // 读取代理配置
-    const configPath = path.join(__dirname, 'config.json');
-    let config = {};
-    try {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    } catch (error) {
-      console.error('读取配置文件失败:', error);
-      config = {
-        proxy: {
-          enabled: false
-        }
-      };
-    }
-
-    // 设置请求选项
+    const proxy = CONFIG.proxy
     const options = {
       hostname: parsedUrl.hostname,
-      port: parsedUrl.port || (protocol === 'https:' ? 443 : 80),
       path: parsedUrl.pathname + parsedUrl.search,
       method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' 
       },
       timeout: 60 * 1000
-    };
+    }
 
     // 只有在明确配置了代理且启用时才添加代理配置
-    if (config.proxy && config.proxy.enabled && config.proxy.host && config.proxy.port) {
-      options.proxy = {
-        host: config.proxy.host,
-        port: config.proxy.port,
-        auth: config.proxy.username && config.proxy.password ? {
-          username: config.proxy.username,
-          password: config.proxy.password
-        } : undefined,
-      };
-      console.log('使用代理配置:', options.proxy);
-    } else {
-      console.log('未配置代理或代理未启用，直接访问');
+    if (proxy && proxy.enabled) {
+      const proxyUrl = `http://${proxy.host}:${proxy.port}`
+      options.agent = protocol === 'https:' ? new HttpsProxyAgent(proxyUrl) : new HttpProxyAgent(proxyUrl)
+      console.log('使用代理配置: ', proxyUrl);
     }
 
     // 发起请求
@@ -740,7 +722,7 @@ app.use((err, req, res, next) => {
 });
 
 // 启动服务器
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`API服务已启动，端口: ${PORT}`);
   console.log(`数据存储目录: ${DATA_DIR}`);
   console.log(`机场数据目录: ${AIRPORTS_DIR}`);

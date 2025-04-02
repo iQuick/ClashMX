@@ -8,12 +8,14 @@
     "dev": "nodemon index.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
     "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
     "liquidjs": "^10.21.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   }
-} 
+}

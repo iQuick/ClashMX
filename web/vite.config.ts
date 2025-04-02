@@ -1,26 +1,40 @@
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import path from 'path'
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src')
+// https://vitejs.dev/config/
+export default defineConfig(({ mode }) => {
+  // 加载环境变量
+  const API = JSON.parse(process.env.API || '{}');
+  const CONFIG = JSON.parse(process.env.CONFIG || '{}');
+
+  const df: { [key: string]: any } = {}
+  for (const key in CONFIG) {
+    if (key === 'host' || key === 'port') {
+      continue;
     }
-  },
-  server: {
-    host: '127.0.0.1',
-    port: 8010,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3100',
-        changeOrigin: true
+    df[`import.meta.env.${key}`] = CONFIG[key]
+  }
+
+  return {
+    plugins: [vue()],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url))
       }
-    },    
-    // ÔÚÕâÀïÌí¼Ó allowedHosts ÅäÖÃ
-    allowedHosts: [
-    ]
+    },
+    define: df,
+    server: {
+      host: CONFIG.host,
+      port: CONFIG.port,
+      proxy: {
+        '/api': {
+          target: `http://${API.host}:${API.port}`,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path // 保持路径不变
+        }
+      }
+    }
   }
 })
