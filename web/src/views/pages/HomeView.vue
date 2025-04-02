@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useAirportStore } from '@/stores/airport'
 import type { Airport } from '@/stores/airport'
+import { apiService } from '@/api/service'
 
 // 使用机场数据store
 const airportStore = useAirportStore()
@@ -10,6 +11,9 @@ const airportStore = useAirportStore()
 const copiedId = ref('')
 // 订阅地址复制状态
 const copiedSubscription = ref(false)
+
+// 修改 subscription 的定义
+const subscription = ref('')
 
 // 确保数据已加载
 onMounted(async () => {
@@ -48,6 +52,28 @@ function copyAirportUrl(airport: Airport) {
     .catch(err => {
       console.error('复制失败:', err)
     })
+}
+
+// 修改 updateSubscription 函数
+async function updateSubscription() {
+  try {
+    await apiService.saveSubscription(subscription.value)
+    alert('保存成功')
+  } catch (error: any) {
+    console.error('保存订阅规则失败:', error)
+    alert('保存失败: ' + (error.message || '未知错误'))
+  }
+}
+
+// 修改 loadSubscription 函数
+async function loadSubscription() {
+  try {
+    const data = await apiService.getSubscription()
+    subscription.value = data
+  } catch (error: any) {
+    console.error('加载订阅规则失败:', error)
+    alert('加载失败: ' + (error.message || '未知错误'))
+  }
 }
 </script>
 
