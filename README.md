@@ -11,6 +11,13 @@ clash-mx/
     └── package.json # 前端依赖
 ```
 
+## 账号
+```
+admin/admin
+```
+
+用户信息存在 api/data/auth 下
+
 
 ## 如何启动项目
 1. 安装依赖
