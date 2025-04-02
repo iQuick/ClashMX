@@ -4,25 +4,6 @@ const path = require('path');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 
-// 获取 npm 可执行文件的路径
-const npmPath = process.platform === 'win32'
-  ? path.join(process.env.APPDATA || '', 'npm', 'npm.cmd')
-  : '/usr/local/bin/npm';
-
-// 检查端口是否被占用
-async function checkPort(port) {
-  try {
-    if (process.platform === 'win32') {
-      const { stdout } = await execAsync(`netstat -ano | findstr :${port}`);
-      return false;
-    } else {
-      const { stdout } = await execAsync(`lsof -i :${port}`);
-      return stdout.trim().length > 0;
-    }
-  } catch (error) {
-    return false;
-  }
-}
 
 // 强制关闭占用端口的进程
 async function killPort(port) {
@@ -107,14 +88,11 @@ async function startServices() {
   }
 
   for (const port of [config.api.port, config.web.port]) {
-    if (await checkPort(port)) {
-      console.log(`端口 ${port} 被占用，正在尝试关闭...`);
-      try {
-        await killPort(port);
-      } catch (error) {
-        console.error(`无法释放端口 ${port}，请手动关闭占用该端口的进程`);
-        process.exit(1);
-      }
+    try {
+      await killPort(port);
+    } catch (error) {
+      console.error(`无法释放端口 ${port}，请手动关闭占用该端口的进程`);
+      process.exit(1);
     }
   }
 
